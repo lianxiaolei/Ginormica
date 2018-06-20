@@ -1,186 +1,171 @@
 # -*- coding: utf-8 -*-
 
-import matplotlib.pyplot as plt
-import numpy as np
-import random
 import cv2
-from keras.layers.merge import Concatenate
-from keras.layers.core import Lambda
-from keras.models import Model
-from keras.models import load_model
-from keras import backend as K
-import tensorflow as tf
-import os
-import skimage
-from tqdm import *
-from sklearn.model_selection import train_test_split
-from keras.applications.vgg16 import VGG16
-from keras.applications.vgg16 import preprocess_input
 from keras.callbacks import *
 from keras.layers import *
 from keras.models import *
 from keras.preprocessing import image
+import numpy as np
+from keras.applications.vgg16 import VGG16
+from keras.utils import to_categorical
 
 
-def make_parallel(model, gpu_count):
-    def get_slice(data, idx, parts):
-        shape = tf.shape(data)
-        size = tf.concat([shape[:1] // parts, shape[1:]], axis=0)
-        stride = tf.concat([shape[:1] // parts, shape[1:] * 0], axis=0)
-        start = stride * idx
-        return tf.slice(data, start, size)
+class BrandClassify(object):
 
-    outputs_all = []
-    for i in range(len(model.outputs)):
-        outputs_all.append([])
+    def __init__(self, batch_size=2, gene=1, width=600, height=300, num_class=100):
+        self.datagen = image.ImageDataGenerator(featurewise_center=False,
+                                                samplewise_center=False,
+                                                featurewise_std_normalization=False,
+                                                samplewise_std_normalization=False,
+                                                zca_whitening=False,
+                                                rotation_range=0.,
+                                                width_shift_range=0.,
+                                                height_shift_range=0.,
+                                                shear_range=0.,
+                                                zoom_range=0.,
+                                                channel_shift_range=0.,
+                                                fill_mode='nearest',
+                                                cval=0.0,
+                                                horizontal_flip=False,
+                                                vertical_flip=False,
+                                                rescale=None,
+                                                preprocessing_function=None,
+                                                data_format=K.image_data_format(),
+                                                )
+        self.labels = None
+        self.files = None
+        self.batch_size = batch_size
+        self.gene = gene
+        self.width = width
+        self.height = height
+        self.num_class = num_class
+        self.base_model = None
+        self.model = None
 
-    # Place a copy of the model on each GPU, each getting a slice of the batch
-    for i in range(gpu_count):
-        with tf.device('/gpu:%d' % i):
-            with tf.name_scope('tower_%d' % i) as scope:
+    def read_data(self, flag, path='../../../../assets/brand_images'):
+        """
+        read the dataset，dir format must be: ./train/, ./train.txt, ./test/, ./test.txt
+        :param flag: 'train' or 'test'
+        :param path
+        """
+        content = open(os.path.join(path, '%s.txt' % flag))
 
-                inputs = []
-                # Slice each input into a piece for processing on this GPU
-                for x in model.inputs:
-                    input_shape = tuple(x.get_shape().as_list())[1:]
-                    slice_n = Lambda(get_slice, output_shape=input_shape, arguments={'idx': i, 'parts': gpu_count})(x)
-                    inputs.append(slice_n)
+        imgs = []
+        labels = []
 
-                outputs = model(inputs)
+        lines = content.readlines()
+        # tqdm is the progress bar, please install it with "pip install tqdm".
+        # if u wan't, you can replace tqdm(lines) with lines.
+        for i in lines:
+            fname, y = i.replace('\n', '').split(' ')
+            y = int(y)
 
-                if not isinstance(outputs, list):
-                    outputs = [outputs]
+            x = os.path.join(path, flag, fname)
 
-                # Save all the outputs for merging back together later
-                for l in range(len(outputs)):
-                    outputs_all[l].append(outputs[l])
+            imgs.append(x)
+            labels.append(y)
+        return np.array(imgs), np.array(labels)
 
-    # merge outputs on CPU
-    with tf.device('/cpu:0'):
-        merged = []
-        for outputs in outputs_all:
-            merged.append(Concatenate(axis=0)(outputs))
+    def data_gen(self, batch_size=128, gene=4):
+        """
+        generate the data with the size batch_size
+        :param batch_size:
+        :param gene:
+        :return:
+        """
 
-        return Model(model.inputs, merged)
+        while True:
+
+            index = np.random.choice(len(self.labels), batch_size, replace=False)
+            label_list = self.labels[index]
+            file_list = self.files[index]
+
+            X_ = []
+            for fname in file_list:
+                img = cv2.imread(fname)
+                img = cv2.resize(img, (self.width, self.height))
+                X_.append(img.tolist())
+            X_ = np.array(X_)
+            y_ = np.array(label_list)
+
+            i = 0
+            X = None
+            y = None
+
+            for batch in self.datagen.flow(X_, y_, batch_size=batch_size):
+                if not type(X) == np.ndarray:
+                    X = batch[0]
+                    y = batch[1]
+                else:
+                    X = np.concatenate([X, batch[0]], axis=0)
+                    y = np.concatenate([y, batch[1]], axis=0)
+
+                i += 1
+                if i >= gene:
+                    break
+            import tensorflow as tf
+
+            # y_onehot = K.one_hot(np.array(y), num_classes=100)
+            y_onehot = to_categorical(np.array(y), num_classes=100)
+            # print('input shape:', type(np.array(X)), np.array(X).shape, type(y_onehot), y_onehot.shape)
+
+            yield (np.array(X), y_onehot)
+            # yield np.array(X), y_onehot, np.ones(batch_size * gene)
+
+    def model_struct(self):
+        input_tensor = Input((self.height, self.width, 3))
+        # vgg = VGG16(weights='../../../../models/VGG16_WEIGHTS.h5', include_top=False, input_tensor=input_tensor)
+        # print('the last vgg layer is ', vgg.layers[-1])
+        # print('the last vgg layer output is ', vgg.output)
+
+        # tensor_shape = vgg.output.shape
+        # print(tensor_shape)
+
+        # rnn_length = tensor_shape[1].value
+        # rnn_dimen = tensor_shape[2].value * tensor_shape[3].value
+        # units = tensor_shape[3].value
+        # print(rnn_length, rnn_dimen, units)
+        x = input_tensor
+        for i in range(3):
+            x = Conv2D(32 * 2 ** i, (3, 3), kernel_initializer='he_normal')(x)
+            x = BatchNormalization()(x)
+            x = Activation('relu')(x)
+            x = Conv2D(32 * 2 ** 2, (3, 3), kernel_initializer='he_normal')(x)
+            x = BatchNormalization()(x)
+            x = Activation('relu')(x)
+            x = MaxPool2D(pool_size=(2, 2))(x)
+
+        x = Flatten()(x)
+        x = Dense(128, kernel_initializer='he_normal')(x)
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
+        x = Dropout(0.25)(x)
+        x = Dense(100, kernel_initializer='he_normal', activation='softmax')(x)
+        # print('now x\'s shape:', x.shape)
+
+        # self.base_model = Model(input=input_tensor, output=x)
+        labels = Input(name='labels', shape=[self.num_class], dtype='float32')
+        self.model = Model(inputs=input_tensor, outputs=x)
+
+    def train(self):
+        self.files, self.labels = self.read_data('train')
+        # print('读取数据', len(self.files), len(self.labels))
+        # print(next(self.data_gen(1, 1)))
+        self.model_struct()
+        self.model.compile(loss='mean_squared_error', optimizer='adam')
+        # print('model:', self.model)
+        self.model.fit_generator(
+            self.data_gen(self.batch_size, self.gene),
+            steps_per_epoch=100,
+            epochs=20,
+            validation_data=self.data_gen(20, 1),
+            validation_steps=10
+        )
+        self.base_model.save('brand_classify_vgg16.h5')
+        self.base_model.save_weights('brand_classify_vgg16_weights.h5')
 
 
-def get_img_with_fname(fname, size=None):
-    """
-
-    :param fname:
-    :param size:
-    :return:
-    """
-    img = cv2.imread(fname)
-    if size:
-        img = cv2.resize(img, size)
-    return img
-
-
-def read_data(flag, path='../../../../assets/brand_images'):
-    #     train = open(os.path.join(path, 'train.txt'))
-    #     text = open(os.path.join(path, 'test.txt'))
-    content = open(os.path.join(path, '%s.txt' % flag))
-
-    imgs = []
-    labels = []
-
-    lines = content.readlines()
-    for i in tqdm(lines):
-        fname, y = i.replace('\n', '').split(' ')
-        y = int(y)
-        #         print(os.path.join(path, 'train', fname))
-        x = get_img_with_fname(os.path.join(path, flag, fname), size=(600, 300))
-
-        imgs.append(x)
-        labels.append(y)
-    return np.array(imgs), np.array(labels)
-
-
-X, y = read_data('train')
-
-trainX, testX, trainy, testy = train_test_split(X, y, test_size=0.1, random_state=0)
-print(trainX.shape, testX.shape)
-
-datagen = image.ImageDataGenerator(featurewise_center=False,
-    samplewise_center=False,
-    featurewise_std_normalization = False,
-    samplewise_std_normalization = False,
-    zca_whitening = False,
-    rotation_range = 0.,
-    width_shift_range = 0.,
-    height_shift_range = 0.,
-    shear_range = 0.,
-    zoom_range = 0.,
-    channel_shift_range = 0.,
-    fill_mode = 'nearest',
-    cval = 0.0,
-    horizontal_flip = False,
-    vertical_flip = False,
-    rescale = None,
-    preprocessing_function = None,
-    data_format = K.image_data_format(),
-)
-
-i = 0
-XX = None
-yy = None
-for batch in datagen.flow(trainX, trainy, batch_size=len(trainX)):
-    print(batch[0].shape, batch[1].shape)
-    print(batch[1])
-    if not type(XX) == np.ndarray:
-        XX = batch[0]
-        yy = batch[1]
-    else:
-        XX = np.concatenate([XX, batch[0]], axis=0)
-        yy = np.concatenate([yy, batch[1]], axis=0)
-
-    i += 1
-    if i >= 4:
-        break
-print(XX.shape)
-yy_onehot = K.one_hot(yy, num_classes=100)
-print(yy_onehot.shape)
-
-weight_decay = 0.0005
-nb_epoch=100
-batch_size=32
-width = 600
-height = 300
-
-input_tensor = Input((height, width, 3))
-
-
-# vgg = VGG16(weights='../../../../models/VGG16_WEIGHTS.h5', include_top=False, input_tensor=input_tensor)
-vgg = VGG16(weights='imagenet', include_top=False, input_tensor=input_tensor)
-print(vgg.layers[-1])
-# print(' '.join())
-print(vgg.output)
-
-tensor_shape = vgg.output.shape
-print(tensor_shape)
-
-rnn_length = tensor_shape[1].value
-rnn_dimen = tensor_shape[2].value * tensor_shape[3].value
-units = tensor_shape[3].value
-
-print(rnn_length, rnn_dimen, units)
-
-x = Flatten()(vgg.output)
-x = Dense(128, kernel_initializer='he_normal')(x)
-x = BatchNormalization()(x)
-x = Activation('relu')(x)
-x = Dropout(0.25)(x)
-x = Dense(100, kernel_initializer='he_normal', activation='softmax')(x)
-print('now x\'s shape:', x.shape)
-
-base_model = Model(input=input_tensor, output=x)
-
-base_model.compile(loss='mean_squared_error', optimizer='adam')
-
-base_model.fit(XX, yy_onehot)
-
-base_model.save('vgg_bottleneck_classify.h5')
-base_model.save_weights('vgg_bottleneck_classify_weights.h5')
-
-print('all done')
+if __name__ == '__main__':
+    bc = BrandClassify()
+    bc.train()
+    print('done')
