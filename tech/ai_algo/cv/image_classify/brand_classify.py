@@ -8,11 +8,24 @@ from keras.preprocessing import image
 import numpy as np
 from keras.applications.vgg16 import VGG16
 from keras.utils import to_categorical
+import sys
+
+
+class Evaluator(Callback):
+    def __init__(self, model):
+        self.accs = []
+        self.model = model
+
+    def on_epoch_end(self, epoch, logs={}):
+        print('model--------------------------', self.model.evaluate(steps=10))
+        acc = self.model.evaluate(steps=1) * 100
+        self.accs.append(acc)
+        print('acc: %f%%' % acc)
 
 
 class BrandClassify(object):
 
-    def __init__(self, batch_size=2, gene=1, width=600, height=300, num_class=100):
+    def __init__(self, batch_size=64, gene=1, width=600, height=300, num_class=100):
         self.datagen = image.ImageDataGenerator(featurewise_center=False,
                                                 samplewise_center=False,
                                                 featurewise_std_normalization=False,
@@ -35,6 +48,7 @@ class BrandClassify(object):
         self.labels = None
         self.files = None
         self.batch_size = batch_size
+        print('self batch size', self.batch_size)
         self.gene = gene
         self.width = width
         self.height = height
@@ -64,7 +78,7 @@ class BrandClassify(object):
 
             imgs.append(x)
             labels.append(y)
-        return np.array(imgs), np.array(labels)
+        return np.array(imgs), np.array(labels) - 1
 
     def data_gen(self, batch_size=128, gene=4):
         """
@@ -73,6 +87,9 @@ class BrandClassify(object):
         :param gene:
         :return:
         """
+        X_ = np.zeros([batch_size, self.height, self.width, 3], np.uint8)
+        y_ = np.zeros([batch_size, 1], np.uint8)
+
 
         while True:
 
@@ -80,37 +97,49 @@ class BrandClassify(object):
             label_list = self.labels[index]
             file_list = self.files[index]
 
-            X_ = []
-            for fname in file_list:
+            for i in range(len(file_list)):
+                fname = file_list[i]
                 img = cv2.imread(fname)
                 img = cv2.resize(img, (self.width, self.height))
-                X_.append(img.tolist())
-            X_ = np.array(X_)
-            y_ = np.array(label_list)
+                img = img / 255.0
+                X_[i] = img
+                y_[i] = np.array(label_list[i])
+
+            # for fname in file_list:
+            #     img = cv2.imread(fname)
+            #     img = cv2.resize(img, (self.width, self.height))
+            #     X_.append(img.tolist())
+            #
+            # X_ = np.array(X_)
+            # y_ = np.array(label_list)
 
             i = 0
-            X = None
-            y = None
-
+            X = np.zeros([batch_size * gene, self.height, self.width, 3], np.uint8)
+            y = np.zeros([batch_size * gene, 1], np.uint8)
             for batch in self.datagen.flow(X_, y_, batch_size=batch_size):
-                if not type(X) == np.ndarray:
-                    X = batch[0]
-                    y = batch[1]
-                else:
-                    X = np.concatenate([X, batch[0]], axis=0)
-                    y = np.concatenate([y, batch[1]], axis=0)
+                X[i * batch_size: (i + 1) * batch_size] = batch[0]
+                y[i * batch_size: (i + 1) * batch_size] = batch[1]
+
+                # if not type(X) == np.ndarray:
+                #     X = batch[0]
+                #     y = batch[1]
+                # else:
+                #     X = np.concatenate([X, batch[0]], axis=0)
+                #     y = np.concatenate([y, batch[1]], axis=0)
 
                 i += 1
                 if i >= gene:
                     break
-            import tensorflow as tf
+            #
+            # # X = np.array(X)
+            # y_onehot = to_categorical(np.array(y), num_classes=100)
+            # print('input :', X.dtype, X.shape, sys.getsizeof(X),
+            #       y_onehot.dtype, y_onehot.shape, sys.getsizeof(y_onehot))
+            #
+            # yield X, y_onehot
 
-            # y_onehot = K.one_hot(np.array(y), num_classes=100)
-            y_onehot = to_categorical(np.array(y), num_classes=100)
-            # print('input shape:', type(np.array(X)), np.array(X).shape, type(y_onehot), y_onehot.shape)
-
-            yield (np.array(X), y_onehot)
-            # yield np.array(X), y_onehot, np.ones(batch_size * gene)
+            yield X, to_categorical(np.array(y), num_classes=100)
+            # return
 
     def model_struct(self):
         input_tensor = Input((self.height, self.width, 3))
@@ -127,45 +156,60 @@ class BrandClassify(object):
         # print(rnn_length, rnn_dimen, units)
         x = input_tensor
         for i in range(3):
-            x = Conv2D(32 * 2 ** i, (3, 3), kernel_initializer='he_normal')(x)
-            x = BatchNormalization()(x)
-            x = Activation('relu')(x)
-            x = Conv2D(32 * 2 ** 2, (3, 3), kernel_initializer='he_normal')(x)
-            x = BatchNormalization()(x)
+            # x = Conv2D(100, (3, 3), kernel_initializer='he_normal')(x)
+            # # x = BatchNormalization()(x)
+            # x = Activation('relu')(x)
+            x = Conv2D(100, (3, 3), kernel_initializer='he_normal')(x)
+            # x = BatchNormalization()(x)
             x = Activation('relu')(x)
             x = MaxPool2D(pool_size=(2, 2))(x)
 
         x = Flatten()(x)
-        x = Dense(128, kernel_initializer='he_normal')(x)
+        x = Dense(400, kernel_initializer='he_normal')(x)
         x = BatchNormalization()(x)
         x = Activation('relu')(x)
         x = Dropout(0.25)(x)
         x = Dense(100, kernel_initializer='he_normal', activation='softmax')(x)
-        # print('now x\'s shape:', x.shape)
 
-        # self.base_model = Model(input=input_tensor, output=x)
-        labels = Input(name='labels', shape=[self.num_class], dtype='float32')
+        self.base_model = Model(input=input_tensor, output=x)
+        # labels = Input(name='labels', shape=[self.num_class], dtype='float32')
         self.model = Model(inputs=input_tensor, outputs=x)
 
     def train(self):
         self.files, self.labels = self.read_data('train')
         # print('读取数据', len(self.files), len(self.labels))
-        # print(next(self.data_gen(1, 1)))
+
         self.model_struct()
         self.model.compile(loss='mean_squared_error', optimizer='adam')
         # print('model:', self.model)
         self.model.fit_generator(
             self.data_gen(self.batch_size, self.gene),
-            steps_per_epoch=100,
+            steps_per_epoch=200,
             epochs=20,
-            validation_data=self.data_gen(20, 1),
+            max_q_size=1,
+            # callbacks=[Evaluator(self.model)],
+            validation_data=self.data_gen(20, 4),
             validation_steps=10
         )
+        print(self.model.output)
         self.base_model.save('brand_classify_vgg16.h5')
         self.base_model.save_weights('brand_classify_vgg16_weights.h5')
 
+    def evaluate(self, steps=10):
+        print('------------------steps-------------------', steps)
+        batch_acc = 0
+        generator = self.data_gen(self.batch_size, self.gene)
+        for i in range(steps):
+            X_test, y_test = next(generator)
+            y_pred = self.base_model.predict(X_test)
+
+            acc = np.mean(np.argmax(y_pred) == np.argmax(y_test))
+            batch_acc += acc
+
+        return batch_acc / steps
+
 
 if __name__ == '__main__':
-    bc = BrandClassify()
+    bc = BrandClassify(batch_size=100, gene=4, width=150, height=80)
     bc.train()
     print('done')
