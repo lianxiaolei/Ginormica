@@ -20,4 +20,4 @@ def fib_tmp(self, n):
 
 
 if __name__ == '__main__':
-    print fib_tmp(3)
+    print(fib_tmp(3))
