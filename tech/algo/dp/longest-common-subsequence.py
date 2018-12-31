@@ -25,13 +25,9 @@ def lcs_dp(s0, s1, dp, ii, jj):
 
 def search(s0, s1):
     dp = np.zeros((100, 100), dtype=np.int8)
-
-    if len(s0) == 1:
-        if s0 in s1:
-            return True
-    if len(s1) == 1:
-        if s1 in s0:
-            return True
+    if len(s0) == 0 or len(s1) == 0: return 0
+    if len(s0) == 1 or len(s1) == 1:
+        return 1 if s0 in s1 or s1 in s0 else 0
     return lcs_dp(s0, s1, dp, 0, 0)
 
 
@@ -68,4 +64,5 @@ if __name__ == '__main__':
     # print('The longest common subsequence is:', stupid('abcddffgiem', 'cddejjghem'))
     # print('The longest common subsequence is:', stupid('bedaacbade', 'dccaeedbeb'))
     print('The longest common subsequence is:', search('bedaacbade', 'dccaeedbeb'))
-    print('The longest common subsequence is:', search('abcddffgiem', 'cddejjghem'))
+    print('The longest common subsequence is:', search('abcddffgiem', 'cddejjcddfghem'))
+    print('The longest common subsequence is:', search('abcddffgiem', 'a'))
