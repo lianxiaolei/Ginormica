@@ -23,5 +23,4 @@ class Wrapper(Layer):
         # to the inputs to the Wrapper layer).
         self._input_map = {}
         super(Wrapper, self).__init__(**kwargs)
-        import pickle
 
