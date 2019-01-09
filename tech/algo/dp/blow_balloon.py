@@ -16,7 +16,7 @@ def blow_balloon(arr, dp, visit, left, right):
         return dp[left][right]
 
     res = 0
-    for i in xrange(left, right + 1):
+    for i in range(left, right + 1):
         midval = arr[left - 1] * arr[i] * arr[right + 1]
         leftval = blow_balloon(arr, dp, visit, left, i - 1)  # 左夹心
         rightval = blow_balloon(arr, dp, visit, i + 1, right)  # 右夹心
@@ -34,13 +34,13 @@ if __name__ == '__main__':
     arr = [1] + a + [1]
     dp = []
     visit = []
-    for i in xrange(length + 2):
+    for i in range(length + 2):
         dp.append([])
         visit.append([])
-        for j in xrange(length + 2):
+        for j in range(length + 2):
             dp[i].append(0)
             visit[i].append(0)
 
     left = 1
     right = length
-    print blow_balloon(arr, dp, visit, left, right)
+    print(blow_balloon(arr, dp, visit, left, right))

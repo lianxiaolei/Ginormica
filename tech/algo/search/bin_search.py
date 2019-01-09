@@ -1,5 +1,6 @@
 # coding: utf-8
 
+
 def bin_search(k, arr):
     """
     二分查找指定元素所在的index
@@ -7,7 +8,7 @@ def bin_search(k, arr):
     :param arr: 数组
     :return: index
     """
-    print arr
+    print(arr)
     if not arr: return -1
     if len(arr) == 1 and not k == arr[0]: return -1
 
@@ -34,4 +35,4 @@ def bin_search(k, arr):
 if __name__ == '__main__':
     arr = [3, 4, 5, 8, 8, 8, 8, 10, 13, 14]
     k = 8
-    print bin_search(k, arr)
+    print(bin_search(k, arr))
