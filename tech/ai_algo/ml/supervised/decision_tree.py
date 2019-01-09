@@ -5,10 +5,6 @@ import numpy as np
 import pandas as pd
 import sys
 
-reload(sys)
-sys.setdefaultencoding('utf8')
-
-
 def create_data_set():
     """
     创建数据集
@@ -40,8 +36,8 @@ def load_data_set():
     加载数据集
     :return:
     '''
-    # data_set = np.recfromcsv('../../../data/watermelon3.csv')
-    data = pd.read_csv('../../../data/watermelon3.csv',
+    # data_set = np.recfromcsv('../../../assets/watermelon3.csv')
+    data = pd.read_csv('../../../../assets/watermelon3.csv',
                        header=0)
     labels = ['色泽', '根蒂', '敲声', '纹理', '脐部', '触感']
     matrix_data = data.as_matrix()[:, 1:]
@@ -60,7 +56,7 @@ def majority_cnt(class_list):
     for key in class_list:
         class_count.setdefault(key, 0)
         class_count[key] += 1
-    class_count = sorted(class_count.iteritems(), key=lambda item: item[1], reverse=True)
+    class_count = sorted(class_count.items(), key=lambda item: item[1], reverse=True)
     return class_count[0][0]
 
 
@@ -93,7 +89,7 @@ def calc_shannon_ent(data_set):
         count_value.setdefault(item[-1], 0.0)
         count_value[item[-1]] += 1
     shannon_ent = 0.0
-    for feat_value, num in count_value.iteritems():
+    for feat_value, num in count_value.items():
         prob = num / num_data
         shannon_ent = shannon_ent - prob * np.log2(prob)
     return shannon_ent
@@ -167,7 +163,7 @@ def create_tree(data_set, labels, chooseBestFeatureToSplitFunc=choose_best_featu
     :param chooseBestFeatureToSplitFunc:
     :return:
     """
-    print len(data_set[0]), len(labels)
+    print(len(data_set[0]), len(labels))
     class_list = [item[-1] for item in data_set]
     if class_list.count(class_list[0]) == len(class_list):
         return class_list[0]
@@ -189,7 +185,7 @@ def create_tree(data_set, labels, chooseBestFeatureToSplitFunc=choose_best_featu
 
 
 def cut(tree):
-    for key, value in tree.iteritems():
+    for key, value in tree.items():
         if isinstance(value, dict):
             sub_tree = value
             cut(sub_tree)
@@ -209,8 +205,9 @@ if __name__ == '__main__':
 
     data_set, labels = load_data_set()
     mytree = create_tree(data_set.tolist(), labels)
+    print(mytree)
     import json
-    print json.dumps(mytree, encoding='utf8')
+    print(json.dumps(mytree))
 
     # import treePlotter
     # from pylab import *
@@ -219,5 +216,3 @@ if __name__ == '__main__':
     # mpl.rcParams['axes.unicode_minus'] = False  # 解决保存图像时负号'-'显示为方块的问题
     #
     # treePlotter.createPlot(mytree)
-
-    from

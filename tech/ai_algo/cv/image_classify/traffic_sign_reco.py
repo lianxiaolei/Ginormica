@@ -41,13 +41,13 @@ class LeNet:
         model = Sequential()
         inputShape = (height, width, depth)
         # if we are using "channels last", update the input shape
-        if K.image_data_format() == "channels_first":   #for tensorflow
+        if K.image_data_format() == "channels_first":  # for tensorflow
             inputShape = (depth, height, width)
         # first set of CONV => RELU => POOL layers
-        model.add(Conv2D(20, (5, 5),padding="same",input_shape=inputShape))
+        model.add(Conv2D(20, (5, 5), padding="same", input_shape=inputShape))
         model.add(Activation("relu"))
         model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-        #second set of CONV => RELU => POOL layers
+        # second set of CONV => RELU => POOL layers
         model.add(Conv2D(50, (5, 5), padding="same"))
         model.add(Activation("relu"))
         model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
@@ -68,13 +68,13 @@ def args_parse():
     # construct the argument parse and parse the arguments
     ap = argparse.ArgumentParser()
     ap.add_argument("-dtest", "--dataset_test", required=True,
-        help="path to input dataset_test")
+                    help="path to input dataset_test")
     ap.add_argument("-dtrain", "--dataset_train", required=True,
-        help="path to input dataset_train")
+                    help="path to input dataset_train")
     ap.add_argument("-m", "--model", required=True,
-        help="path to output model")
+                    help="path to output model")
     ap.add_argument("-p", "--plot", type=str, default="plot.png",
-        help="path to output accuracy/loss plot")
+                    help="path to output accuracy/loss plot")
     args = vars(ap.parse_args())
     return args
 
@@ -151,15 +151,15 @@ def train(aug, trainX, trainY, testX, testY, args):
     plt.savefig(args["plot"])
 
 
-#python train.py --dataset_train ../../traffic-sign/train --dataset_test ../../traffic-sign/test --model traffic_sign.model
-if __name__=='__main__':
+# python train.py --dataset_train ../../traffic-sign/train --dataset_test ../../traffic-sign/test --model traffic_sign.model
+if __name__ == '__main__':
     args = args_parse()
     train_file_path = args["dataset_train"]
     test_file_path = args["dataset_test"]
-    trainX,trainY = load_data(train_file_path)
-    testX,testY = load_data(test_file_path)
+    trainX, trainY = load_data(train_file_path)
+    testX, testY = load_data(test_file_path)
     # construct the image generator for data augmentation
     aug = ImageDataGenerator(rotation_range=30, width_shift_range=0.1,
-        height_shift_range=0.1, shear_range=0.2, zoom_range=0.2,
-        horizontal_flip=True, fill_mode="nearest")
-    train(aug,trainX,trainY,testX,testY,args)
+                             height_shift_range=0.1, shear_range=0.2, zoom_range=0.2,
+                             horizontal_flip=True, fill_mode="nearest")
+    train(aug, trainX, trainY, testX, testY, args)
