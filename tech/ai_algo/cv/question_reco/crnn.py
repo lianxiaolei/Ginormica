@@ -221,6 +221,7 @@ gru1_merged = add([gru_1, gru_1b])
 gru_2 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru2')(gru1_merged)
 gru_2b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal',
              name='gru2_b')(gru1_merged)
+
 x = concatenate([gru_2, gru_2b])
 x = Dropout(0.25)(x)
 x = Dense(n_class, kernel_initializer='he_normal', activation='softmax')(x)

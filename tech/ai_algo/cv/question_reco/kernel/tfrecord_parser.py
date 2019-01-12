@@ -101,17 +101,28 @@ def _bytes_feature_with_list(value):
 
 
 def _write_features(features, tf_writer):
-    """
-
-    :param features:
-    :param tf_writer:
-    :return:
-    """
     tf_features = tf.train.Features(feature=features)
     tf_example = tf.train.Example(features=tf_features)
     tf_serialized = tf_example.SerializeToString()
 
     tf_writer.write(tf_serialized)
+
+
+def tfrecord(path, batch_size=128):
+    """
+
+    :param batch_size:
+    :return:
+    """
+    with tf.python_io.TFRecordWriter(path=path) as tf_writer:
+        for i in range(batch_size):
+            features = {}
+            img, y = gen()
+
+            features['image'] = _bytes_feature(img)
+            features['label'] = _bytes_feature_with_list(y)
+
+            _write_features(features, tf_writer)
 
 
 def img2tfrecord(path, batch_size=128):
@@ -155,7 +166,7 @@ def _read_features(example_proto):
 def tfrecord2img(path, epoch_batch_size=1):
     """
 
-    :param example_proto:
+    :param epoch_batch_size:
     :return:
     """
     data = tf.data.TFRecordDataset(path)
