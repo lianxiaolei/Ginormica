@@ -17,6 +17,7 @@ class CRNN():
     """
 
     """
+    head = None
     def __init__(self):
         pass
 
@@ -27,7 +28,7 @@ class CRNN():
         input_shape[2] = input_shape[2] // 2
         if auto_change_channel:
             input_shape[3] = input_shape[3] * 2
-        if not channel
+        if not channel:
             input_shape[3] = channel
         return input_shape
 
@@ -66,6 +67,7 @@ class CRNN():
         self.w21 = self._init_variable(self._change_size(input_shape), name='conv_w21')
 
         head = self.image2head(X)
+
 
 
 

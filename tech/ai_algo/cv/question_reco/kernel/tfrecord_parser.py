@@ -53,7 +53,7 @@ def get_sequence_img(chars):
     for i in range(1, len(chars)):
         x = np.hstack([x, get_img_by_char(chars[i])])
     x = cv2.resize(x, (400, 80))
-    x = skimage.util.random_noise(x, mode='gaussian', clip=True)
+    # x = skimage.util.random_noise(x, mode='gaussian', clip=True)
     return x
 
 
@@ -135,7 +135,9 @@ def img2tfrecord(path, batch_size=128):
         for i in range(batch_size):
             features = {}
             img, y = gen()
-
+            plt.imshow(img)
+            plt.title('gen')
+            plt.show()
             features['image'] = _bytes_feature(img)
             features['label'] = _bytes_feature_with_list(y)
 
@@ -186,5 +188,10 @@ def tfrecord2img(path, epoch_batch_size=1):
 
 
 if __name__ == '__main__':
-    img2tfrecord('./tfrc.tfrecord', batch_size=1)
-    tf.summary.merge_all
+    import matplotlib.pyplot as plt
+    # img2tfrecord('./tfrc.tfrecord', batch_size=1)
+
+    imgs, y = tfrecord2img('./tfrc.tfrecord', epoch_batch_size=1)
+    # print(np.max(imgs))
+    plt.imshow(imgs)
+    plt.show()
