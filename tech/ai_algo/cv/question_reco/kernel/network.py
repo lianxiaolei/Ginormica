@@ -75,7 +75,6 @@ class CRNN():
     """
 
     """
-
     def __init__(self, num_class, rnn_units):
         self.rnn_units = rnn_units
         self.num_class = num_class
@@ -247,3 +246,4 @@ class CRNN():
             [self.train_op, self.global_step,
              ]
         )
+

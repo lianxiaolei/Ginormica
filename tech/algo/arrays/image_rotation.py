@@ -23,5 +23,3 @@ rotate_image_awsome = lambda a: zip(*a[::-1])
 if __name__ == '__main__':
     import numpy as np
     a = np.linspace(1, 16, 16).reshape(4, 4)
-    print 'rotation--'
-    print image_rotation(a)
