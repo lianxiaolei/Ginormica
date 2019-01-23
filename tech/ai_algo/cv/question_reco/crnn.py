@@ -14,6 +14,7 @@ import time
 from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array, load_img
 import matplotlib
 import tensorflow as tf
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
@@ -142,8 +143,10 @@ def gen(batch_size=128, gene=4):
             i += 1
             if i >= gene:
                 break
-        yield [XX, yy, np.ones(batch_size * gene) * rnn_length,
-               np.ones(batch_size * gene) * n_len], np.ones(batch_size * gene)
+        yield [XX, yy,
+               np.ones(batch_size * gene) * rnn_length,
+               np.ones(batch_size * gene) * n_len], \
+              np.ones(batch_size * gene)
 
 
 def ctc_lambda_func(args):
